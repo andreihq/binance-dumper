@@ -51,7 +51,7 @@ const api = (key, secret) => {
                 price: String
             }
         */
-        placeOrder: async (order) => {
+        placeOrder: async (order, isTest) => {
             const timestamp = moment().valueOf();
             let requestBody = `symbol=${order.symbol}&side=${order.side}&type=${order.type}&quantity=${order.quantity}&price=${order.price}&timeInForce=GTC&timestamp=${timestamp}`;          
             const sign = crypto.createHmac('sha256', apiSecret).update(requestBody).digest('hex');
@@ -59,7 +59,7 @@ const api = (key, secret) => {
             requestBody = `${requestBody}&signature=${sign}`;
             
             const options = {
-                url: API_ENDPOINTS['PLACE_ORDER'],
+                url: isTest ? API_ENDPOINTS['TEST_ORDER'] : API_ENDPOINTS['PLACE_ORDER'],
                 method: 'POST',
                 headers: {
                     'X-MBX-APIKEY': apiKey

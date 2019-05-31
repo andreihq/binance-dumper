@@ -5,7 +5,6 @@ const fs = require('fs');
 const { api } = require('./api');
 const { delay, log } = require('./utils');
 
-
 const confirmConfig = (config) => {
 	const confirmPrompt = {
 		name: 'confirmPrompt',
@@ -36,6 +35,27 @@ const confirmConfig = (config) => {
 	});
 }
 
+const testApi = async (api) => {
+	const testOrder = {
+		symbol: "BTCUSDT",
+		side: "SELL",
+		type: "LIMIT",
+		quantity: 1,
+		price: 10000
+	};
+
+	process.stdout.write("Testing API keys: ");
+	const response = await api.placeOrder(testOrder, true);
+
+	if (response.success) {
+		process.stdout.write("PASSED\n");
+	} else {
+		process.stdout.write("FAILED\n");
+		process.stdout.write("Unable to send Test Order. Check your API keys and try again.\n");
+		process.exit();
+	}
+}
+
 (async function main(configFile) {
 
 	// Configure prompt objecct
@@ -46,6 +66,7 @@ const confirmConfig = (config) => {
 	// Load the config file
 	let CONFIG = JSON.parse(fs.readFileSync(configFile, 'utf8'));
 
+	// Confirm the config settings
 	await confirmConfig(CONFIG);
 
 	let state = {
@@ -55,6 +76,9 @@ const confirmConfig = (config) => {
 	};
 
 	let binanceApi = api(CONFIG.apiKey, CONFIG.apiSecret);
+
+	// Test API keys
+	await testApi(binanceApi);
 
 	let order = {
 		symbol: CONFIG.symbol,
