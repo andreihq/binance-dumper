@@ -57,6 +57,10 @@ const testApi = async (api) => {
 	}
 }
 
+const orderToString = (order) => {
+	return `${order.type} ${order.side} ${order.quantity} ${order.symbol} @ ${order.price}`;
+}
+
 (async function main(configFile) {
 
 	// Configure prompt objecct
@@ -85,12 +89,21 @@ const testApi = async (api) => {
 		symbol: CONFIG.symbol,
 		side: "SELL",
 		type: "LIMIT",
-		quantity: state.orderQuantity,
+		quantity: Math.floor(state.orderQuantity),
 		price: state.orderPrice.toFixed(8)
 	};
 
+	// TODO: Binance doesn't return market info for the pair that doesn't trade yet.
+	// Market info is needed to know min qty/qty tick and min price/price tick to correctly
+	// format quantity and price.
+	// We can just hardcode for now the values.
+
+	//let exchangeInfo = await binanceApi.getExchangeInfo();
+	//let symbol = exchangeInfo.data.symbols.find((symbol) => symbol.symbol === CONFIG.symbol);
+	//let minPrice = "0.00000001";
+	//let minQty = "1.00000000";
+
 	const placeStartingOrder = async (order) => {
-		log("Placing initial order...");
 		const orderResponse = await binanceApi.placeOrder(order);
 		if (orderResponse.data.code) {
 			log(`Error placing first order. Retrying...`);
@@ -117,39 +130,53 @@ const testApi = async (api) => {
 		readline.clearLine(process.stdout, 0);
 		readline.cursorTo(process.stdout, 0);
 
+		log(`Sending first order: ${orderToString(order)}`);
 		state.orderId = await placeStartingOrder(order);
 
-		while(state.orderQuantity > 2) {
+		// TODO: Should be "> minQuantity" as defined by market.
+		// Unfortunetly, Binance doesn't return market info for pair that doesn't trade yet.
+		while(state.orderQuantity >= 1) {
 			// get order book
 			let response = await binanceApi.getOrderBook(CONFIG.symbol);
 
 			let bestPrice = parseFloat(response.data.bidPrice);
 
-			log(`Best bid: ${bestPrice}`);
+			// Output current bid
+			readline.clearLine(process.stdout, 0);
+			readline.cursorTo(process.stdout, 0);
+			process.stdout.write(`Current Best Bid: ${bestPrice}`);
 			if ((bestPrice <= (state.orderPrice * (1 - CONFIG.priceDelta))) &&
 				(bestPrice >= CONFIG.minSellPrice)) {
-				log(`Updating price to ${bestPrice}.`);
+				console.log();
+				log(`Price fallen below ${CONFIG.priceDelta * 100}% delta. Updating order...`);
 				//cancel current order and move the price lower
 				log(`Cancelling previous order...`);
-				let cancelResponse = await binanceApi.cancelOrder(CONFIG.symbol, state.orderId);
-				if (cancelResponse.data.code) {
-					console.log(cancelResponse);
-					throw `Unable to cancel order '${state.orderId}'. Order might have been filled. Error: ${cancelResponse.data.code}`;
+				response = await binanceApi.cancelOrder(CONFIG.symbol, state.orderId);
+				if (response.data.code) {
+					console.log(response);
+					throw `Unable to cancel order '${state.orderId}'. Order might have been filled. Error: ${response.data.code}`;
 				}
-				let filledQuantity = parseFloat(cancelResponse.data.executedQty);
+				let filledQuantity = parseFloat(response.data.executedQty);
+
+				response = await binanceApi.getOrderBook(CONFIG.symbol);
+
+				bestPrice = parseFloat(response.data.bidPrice);
 				state.orderId = null;
 				state.orderQuantity = state.orderQuantity - filledQuantity;
 				state.orderPrice = bestPrice * (1 - CONFIG.limitDepth);
-				log("Placing new order...");
-				let newOrder = await binanceApi.placeOrder(Object.assign(
+
+				let newOrder = Object.assign(
 					{},
 					order,
 					{
 						quantity: Math.floor(state.orderQuantity),
 						price: state.orderPrice.toFixed(8)
 					}
-				));
-				state.orderId = newOrder.data.orderId;
+				);
+
+				log(`Placing new order: ${orderToString(newOrder)}`);
+				response = await binanceApi.placeOrder(newOrder);
+				state.orderId = response.data.orderId;
 			}
 		}
 	},

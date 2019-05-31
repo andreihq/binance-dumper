@@ -4,6 +4,8 @@ const moment = require('moment');
 const { delay } = require('./utils');
 
 const API_ENDPOINTS = {
+    'SERVER_TIME': 'https://api.binance.com/api/v1/time',
+    'EXCHANGE_INFO': 'https://api.binance.com/api/v1/exchangeInfo',
     'GET_ORDER_BOOK': 'https://api.binance.com/api/v3/ticker/bookTicker',
     'PLACE_ORDER': 'https://api.binance.com/api/v3/order',
     'CANCEL_ORDER': 'https://api.binance.com/api/v3/order',
@@ -42,6 +44,19 @@ const api = (key, secret) => {
     }
 
     return {
+        getExchangeInfo: async () => {
+            const options = {
+                url: API_ENDPOINTS['EXCHANGE_INFO'],
+                method: 'GET',
+                headers: {
+                    'X-MBX-APIKEY': apiKey
+                },
+                forever: true
+            };
+
+            return await sendRequest(options);
+        },
+
         /*
             order: {
                 symbol: String,
