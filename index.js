@@ -1,18 +1,12 @@
 
 const moment = require('moment');
-const prompt = require('prompt');
+const prompts = require('prompts');
 const readline = require('readline');
 const fs = require('fs');
 const { api } = require('./api');
 const { delay, log, displayCountdown } = require('./utils');
 
-const confirmConfig = (config) => {
-	const confirmPrompt = {
-		name: 'confirmPrompt',
-		message: 'Confirm configuration and start script? [y/n]',
-		validator: /y[es]*|n[o]?/,
-		warning: 'Confirm by [y]es or [n]o.',
-	};
+const confirmConfig = async (config) => {
 
 	console.log(`----------`);
 	console.log(`Symbol:\t\t\t${config.symbol}`);
@@ -23,17 +17,16 @@ const confirmConfig = (config) => {
 	console.log(`Trading Start Time:\t${moment(config.tradingStartTime).format()}`);
 	console.log(`----------\n`);
 
-	return new Promise(function(resolve, reject) {
-		prompt.get(confirmPrompt, (err, result) => {
-			if (result.confirmPrompt != 'y' && result.confirmPrompt != 'yes') {
-				process.exit();
-			} else {
-				// Add empty line as delimiter and resolve promise to continue
-				console.log();
-				resolve();
-			}
-		});
+	const response = await prompts({
+		type: 'text',
+		name: 'value',
+		message: 'Confirm configuration and start script? [y/n]',
+		validate: value => value.match(/y[es]*|n[o]?/)
 	});
+
+	if (response.value != 'y' && response.value != 'yes') {
+		process.exit();
+	}
 }
 
 const testApi = async (api) => {
@@ -63,27 +56,15 @@ const orderToString = (order) => {
 
 (async function main(configFile) {
 
-	// Configure prompt objecct
-	prompt.start();
-	prompt.message = ' > ';
-	prompt.delimiter = '';
-
 	// Load the config file
 	let CONFIG = JSON.parse(fs.readFileSync(configFile, 'utf8'));
-
-	// Confirm the config settings
-	await confirmConfig(CONFIG);
 
 	let state = {
 		orderId: null,
 		orderPrice: CONFIG.startingPrice,
-		orderQuantity: CONFIG.sellQuantity
+		orderQuantity: CONFIG.sellQuantity,
+		isQuiting: false
 	};
-
-	let binanceApi = api(CONFIG.apiKey, CONFIG.apiSecret);
-
-	// Test API keys
-	await testApi(binanceApi);
 
 	let order = {
 		symbol: CONFIG.symbol,
@@ -92,6 +73,35 @@ const orderToString = (order) => {
 		quantity: Math.floor(state.orderQuantity),
 		price: state.orderPrice.toFixed(8)
 	};
+
+	let binanceApi = api(CONFIG.apiKey, CONFIG.apiSecret);
+
+	process.on('SIGINT', async () => {
+		state.isQuiting = true;
+
+		if (!state.orderId) {
+			process.exit();
+		}
+		
+		const response = await prompts({
+			type: 'text',
+			name: 'value',
+			message: `Cancel active order (${orderToString(order)}) before quiting? [y/n]`,
+			validate: value => value.match(/y[es]*|n[o]?/)
+		});
+
+		if (response.value == 'y' || response.value == 'yes') {
+			await binanceApi.cancelOrder(CONFIG.symbol, state.orderId);
+		}
+		
+		process.exit();
+	});
+
+	// Confirm the config settings
+	await confirmConfig(CONFIG);
+
+	// Test API keys
+	await testApi(binanceApi);
 
 	// TODO: Binance doesn't return market info for the pair that doesn't trade yet.
 	// Market info is needed to know min qty/qty tick and min price/price tick to correctly
@@ -126,35 +136,33 @@ const orderToString = (order) => {
 	displayCountdown(CONFIG.tradingStartTime - 1000); // stop countdown at 1s before start time.
 
 	setTimeout( async () => {
-		// Clear countdown timer
-		readline.clearLine(process.stdout, 0);
-		readline.cursorTo(process.stdout, 0);
 
 		log(`Sending first order: ${orderToString(order)}`);
 		state.orderId = await placeStartingOrder(order);
 
 		// TODO: Should be "> minQuantity" as defined by market.
 		// Unfortunetly, Binance doesn't return market info for pair that doesn't trade yet.
-		while(state.orderQuantity >= 1) {
+		while(state.orderQuantity >= 1 && !state.isQuiting) {
 			// get order book
 			let response = await binanceApi.getOrderBook(CONFIG.symbol);
 
 			let bestPrice = parseFloat(response.data.bidPrice);
 
 			// Output current bid
-			readline.clearLine(process.stdout, 0);
-			readline.cursorTo(process.stdout, 0);
-			process.stdout.write(`Current Best Bid: ${bestPrice}`);
-			if (bestPrice <= (state.orderPrice * (1 - CONFIG.priceDelta))) {
-				console.log();
+			if (!state.isQuiting) {
+				readline.clearLine(process.stdout, 0);
+				readline.cursorTo(process.stdout, 0);
+				process.stdout.write(`Current Best Bid: ${bestPrice}`);
+			}
 
+			if (bestPrice <= (state.orderPrice * (1 - CONFIG.priceDelta))) {
 				// if our current price is already at minSellPrice, no need
 				// to cancel/create new order. We already have an order with the minimum
 				// sell price.
 				if (state.orderPrice <= CONFIG.minSellPrice) {
 					continue;
 				}
-
+				console.log();
 				log(`Price fallen below ${CONFIG.priceDelta * 100}% delta. Updating order...`);
 				//cancel current order and move the price lower
 				log(`Cancelling previous order...`);

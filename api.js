@@ -22,7 +22,9 @@ const api = (key, secret) => {
         if (requestDelay > 0 ) {
             await delay(requestDelay);
         }
+        
         return new Promise((resolve, reject) => {
+
             request(options, (error, response, body) => {
                 let success = (!error && response.statusCode == 200) ? true : false;
 
