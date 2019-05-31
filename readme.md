@@ -9,10 +9,12 @@ Node v10.15+
 ```npm install```  
 2) Configure script parameters. (See below)
 3) Run the script  
-```npm start```  
+```npm start config.json```  
+or  
+```node index.js config.json```  
 
 # Script Configuration
-Configuration object *CONFIG* can be found at the top of *index.js* file. Script is configurable using following parameters:  
+Configuration file *config.json* must be supplied as first argument to the script. Script is configurable using following parameters:  
 
 Name | Type | Description
 -----| ---- | -----------
