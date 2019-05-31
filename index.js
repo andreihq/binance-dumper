@@ -1,21 +1,13 @@
 
 const moment = require('moment');
+const fs = require('fs');
 const { api } = require('./api');
 const { delay, log } = require('./utils');
 
-(async function main() {
+(async function main(configFile) {
 
-	const CONFIG = {
-		apiKey: "YOUR_API_KEY",
-		apiSecret: "YOUR_API_SECRET",
-
-		symbol: "BTCUSDT",					// the symbol you will be selling
-		tradingStartTime: 1556510400000,	// epoch in ms when trading starts
-		sellQuantity: 1,					// the position you are trying to sell
-		minSellPrice: 3000,					// the minimum price for sell order
-		startingPrice: 10000,				// your starting price (best guess for first candle)
-		priceDelta: 0.03					// price difference when order is moved down
-	};
+	// Load the config file
+	let CONFIG = JSON.parse(fs.readFileSync(configFile, 'utf8'));
 
 	let state = {
 		orderId: null,
@@ -107,4 +99,4 @@ const { delay, log } = require('./utils');
 	},
 	Math.max(0,msRemaining));
 
-})();
+})(process.argv[2]);
