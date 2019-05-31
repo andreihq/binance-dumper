@@ -12,8 +12,7 @@ const { delay, log } = require('./utils');
 	let state = {
 		orderId: null,
 		orderPrice: CONFIG.startingPrice,
-		orderQuantity: CONFIG.sellQuantity,
-		requestDelay: 0
+		orderQuantity: CONFIG.sellQuantity
 	};
 
 	let binanceApi = api(CONFIG.apiKey, CONFIG.apiSecret);
@@ -58,13 +57,6 @@ const { delay, log } = require('./utils');
 
 			let bestPrice = parseFloat(response.data.bidPrice);
 
-			if (response.httpCode == 429) {
-				log("Limiting request rate.");
-				state.requestDelay = 100;
-			} else {
-				state.requestDelay = 0;
-			}
-
 			log(`Best bid: ${bestPrice}`);
 			if ((bestPrice <= (state.orderPrice * (1 - CONFIG.priceDelta))) &&
 				(bestPrice >= CONFIG.minSellPrice)) {
@@ -90,10 +82,6 @@ const { delay, log } = require('./utils');
 					}
 				));
 				state.orderId = newOrder.data.orderId;
-			}
-
-			if (state.requestDelay) {
-				await delay(state.requestDelay);
 			}
 		}
 	},

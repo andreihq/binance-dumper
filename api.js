@@ -1,6 +1,7 @@
 const crypto = require('crypto');
 const request = require('request');
 const moment = require('moment');
+const { delay } = require('./utils');
 
 const API_ENDPOINTS = {
     'GET_ORDER_BOOK': 'https://api.binance.com/api/v3/ticker/bookTicker',
@@ -9,25 +10,36 @@ const API_ENDPOINTS = {
     'TEST_ORDER': 'https://api.binance.com/api/v3/order/test'
 };
 
-const sendRequest = (options) => {
-    return new Promise((resolve, reject) => {
-        request(options, (error, response, body) => {
-            let success = (!error && response.statusCode == 200) ? true : false;
-            resolve(
-                {
-                    success: success,
-                    httpCode: response.statusCode,
-                    data: JSON.parse(body)
-                }
-            );
-        });
-    });
-}
-
 const api = (key, secret) => {
 
     let apiSecret = secret;
     let apiKey = key;
+    let requestDelay = 0;
+
+    const sendRequest = async (options) => {
+        if (requestDelay > 0 ) {
+            await delay(requestDelay);
+        }
+        return new Promise((resolve, reject) => {
+            request(options, (error, response, body) => {
+                let success = (!error && response.statusCode == 200) ? true : false;
+
+                if (response.statusCode == 429 || response.statusCode == 418) {
+                    requestDelay = response.headers['Retry-After'] * 1000;
+                } else {
+                    requestDelay = 0;
+                }
+
+                resolve(
+                    {
+                        success: success,
+                        httpCode: response.statusCode,
+                        data: JSON.parse(body)
+                    }
+                );
+            });
+        });
+    }
 
     return {
         /*
