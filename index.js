@@ -1,13 +1,52 @@
 
 const moment = require('moment');
+const prompt = require('prompt');
 const fs = require('fs');
 const { api } = require('./api');
 const { delay, log } = require('./utils');
 
+
+const confirmConfig = (config) => {
+	const confirmPrompt = {
+		name: 'confirmPrompt',
+		message: 'Confirm configuration and start script? [y/n]',
+		validator: /y[es]*|n[o]?/,
+		warning: 'Confirm by [y]es or [n]o.',
+	};
+
+	console.log(`\n----------`);
+	console.log(`Symbol:\t\t\t${config.symbol}`);
+	console.log(`Quantity:\t\t${config.sellQuantity}`);
+	console.log(`Starting Price:\t\t${config.startingPrice}`);
+	console.log(`Min Selling Price:\t${config.minSellPrice}`);
+	console.log(`Price Delta:\t\t${config.priceDelta * 100}%`);
+	console.log(`Trading Start Time:\t${moment(config.tradingStartTime).format()}`);
+	console.log(`----------\n`);
+
+	return new Promise(function(resolve, reject) {
+		prompt.get(confirmPrompt, (err, result) => {
+			if (result.confirmPrompt != 'y' && result.confirmPrompt != 'yes') {
+				process.exit();
+			} else {
+				// Add empty line as delimiter and resolve promise to continue
+				console.log();
+				resolve();
+			}
+		});
+	});
+}
+
 (async function main(configFile) {
+
+	// Configure prompt objecct
+	prompt.start();
+	prompt.message = ' > ';
+	prompt.delimiter = '';
 
 	// Load the config file
 	let CONFIG = JSON.parse(fs.readFileSync(configFile, 'utf8'));
+
+	await confirmConfig(CONFIG);
 
 	let state = {
 		orderId: null,
