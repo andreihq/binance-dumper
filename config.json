@@ -1,10 +1,11 @@
 {
-    "apiKey": "YOUR_API_KEY",
+    "apiKey": "YOU_API_KEY",
     "apiSecret": "YOUR_API_SECRET",
     "symbol": "BTCUSDT",
-    "tradingStartTime": 1556510400000,
+    "tradingStartTime": 1559408400000,
     "sellQuantity": 1,
-    "minSellPrice": 3000,
+    "minSellPrice": 12000,
     "startingPrice": 10000,
-    "priceDelta": 0.03
+    "priceDelta": 0.05,
+    "limitDepth": 0
 }

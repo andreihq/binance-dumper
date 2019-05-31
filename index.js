@@ -14,7 +14,7 @@ const confirmConfig = (config) => {
 		warning: 'Confirm by [y]es or [n]o.',
 	};
 
-	console.log(`\n----------`);
+	console.log(`----------`);
 	console.log(`Symbol:\t\t\t${config.symbol}`);
 	console.log(`Quantity:\t\t${config.sellQuantity}`);
 	console.log(`Starting Price:\t\t${config.startingPrice}`);
@@ -139,7 +139,7 @@ const testApi = async (api) => {
 				let filledQuantity = parseFloat(cancelResponse.data.executedQty);
 				state.orderId = null;
 				state.orderQuantity = state.orderQuantity - filledQuantity;
-				state.orderPrice = bestPrice;
+				state.orderPrice = bestPrice * (1 - CONFIG.limitDepth);
 				log("Placing new order...");
 				let newOrder = await binanceApi.placeOrder(Object.assign(
 					{},
