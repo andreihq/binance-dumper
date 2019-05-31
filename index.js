@@ -1,9 +1,10 @@
 
 const moment = require('moment');
 const prompt = require('prompt');
+const readline = require('readline');
 const fs = require('fs');
 const { api } = require('./api');
-const { delay, log } = require('./utils');
+const { delay, log, displayCountdown } = require('./utils');
 
 const confirmConfig = (config) => {
 	const confirmPrompt = {
@@ -45,10 +46,10 @@ const testApi = async (api) => {
 	};
 
 	process.stdout.write("Testing API keys: ");
-	const response = await api.placeOrder(testOrder, true);
+	const response = await api.placeOrder(testOrder, true);	// send a test order to binance api endpoint
 
 	if (response.success) {
-		process.stdout.write("PASSED\n");
+		process.stdout.write("PASSED\n\n");
 	} else {
 		process.stdout.write("FAILED\n");
 		process.stdout.write("Unable to send Test Order. Check your API keys and try again.\n");
@@ -97,7 +98,7 @@ const testApi = async (api) => {
 				setTimeout(function() {				
 				  resolve(placeStartingOrder(order));
 				},
-				100);
+				50);
 			});
 			return await promise;
 		} else {
@@ -105,12 +106,16 @@ const testApi = async (api) => {
 		}
 	};
 
-
 	let msRemaining = CONFIG.tradingStartTime - moment().valueOf();
 
-	log(`Trading will start at ${moment(CONFIG.tradingStartTime).format()}`);
+	// Display countdown to trade start
+	log(`Waiting until trading start time: ${moment(CONFIG.tradingStartTime).format()}`);
+	displayCountdown(CONFIG.tradingStartTime - 1000); // stop countdown at 1s before start time.
 
 	setTimeout( async () => {
+		// Clear countdown timer
+		readline.clearLine(process.stdout, 0);
+		readline.cursorTo(process.stdout, 0);
 
 		state.orderId = await placeStartingOrder(order);
 
@@ -148,6 +153,6 @@ const testApi = async (api) => {
 			}
 		}
 	},
-	Math.max(0,msRemaining));
+	Math.max(0, msRemaining - 100)); // start trying to place orders 0.1s before official trading start time
 
 })(process.argv[2]);

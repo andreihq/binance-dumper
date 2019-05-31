@@ -25,7 +25,7 @@ const api = (key, secret) => {
                 let success = (!error && response.statusCode == 200) ? true : false;
 
                 if (response.statusCode == 429 || response.statusCode == 418) {
-                    requestDelay = response.headers['Retry-After'] * 1000;
+                    requestDelay = (response.headers['Retry-After'] || 0) * 1000;
                 } else {
                     requestDelay = 0;
                 }
