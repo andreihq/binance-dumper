@@ -145,9 +145,16 @@ const orderToString = (order) => {
 			readline.clearLine(process.stdout, 0);
 			readline.cursorTo(process.stdout, 0);
 			process.stdout.write(`Current Best Bid: ${bestPrice}`);
-			if ((bestPrice <= (state.orderPrice * (1 - CONFIG.priceDelta))) &&
-				(bestPrice >= CONFIG.minSellPrice)) {
+			if (bestPrice <= (state.orderPrice * (1 - CONFIG.priceDelta))) {
 				console.log();
+
+				// if our current price is already at minSellPrice, no need
+				// to cancel/create new order. We already have an order with the minimum
+				// sell price.
+				if (state.orderPrice <= CONFIG.minSellPrice) {
+					continue;
+				}
+
 				log(`Price fallen below ${CONFIG.priceDelta * 100}% delta. Updating order...`);
 				//cancel current order and move the price lower
 				log(`Cancelling previous order...`);
@@ -163,9 +170,12 @@ const orderToString = (order) => {
 				bestPrice = parseFloat(response.data.bidPrice);
 				state.orderId = null;
 				state.orderQuantity = state.orderQuantity - filledQuantity;
-				state.orderPrice = bestPrice * (1 - CONFIG.limitDepth);
+				state.orderPrice = Math.max(
+					bestPrice * (1 - CONFIG.limitDepth),
+					CONFIG.minSellPrice
+				);
 
-				let newOrder = Object.assign(
+				order = Object.assign(
 					{},
 					order,
 					{
@@ -174,8 +184,8 @@ const orderToString = (order) => {
 					}
 				);
 
-				log(`Placing new order: ${orderToString(newOrder)}`);
-				response = await binanceApi.placeOrder(newOrder);
+				log(`Placing new order: ${orderToString(order)}`);
+				response = await binanceApi.placeOrder(order);
 				state.orderId = response.data.orderId;
 			}
 		}
